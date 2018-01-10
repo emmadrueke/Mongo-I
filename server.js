@@ -1,61 +1,101 @@
-const express = require('express'); //importing express
-const mongoose = require('mongoose');//importing mongoose
-const bodyParser = require('body-parser');//parse it into JSON? 
-mongoose.connect('mongodb://emmadrueke:ShitsCreek09@ds247587.mlab.com:47587/whatever')
+const express = require('express');
+const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
+const Users = require('./userModel.js');
 
-const Users = require('./model.js');
+const server = express();
 
-const server = express(); //creating our server
+server.use(bodyParser.json());
 
-server.use(bodyParser.json());//tells the server to use bodyParser
+server.post('/users', (req, res) => {
+  const user = new Users(req.body);
 
-server.get('/', (req, res) => {
-  res.status(200).json({ message: 'API Running' });
-});
-
-//-----------------------------------------------------------
-
-server.get('/users/:id', (req, res) => {
-  const { id } = req.params;
-  Users.findById(id, (err, user) => {
-    if (err) {
-      res.status(500);
-      res.json(err);
-    } else {
-      res.json(user);
-    }
-  });
-});
-
-server.post('./users', (req, res) => {
-  const { userName, userPassword } = req.body;
-  if (!userName || !userPassword ) {
-    res.status(422);
-    res.json({ error: 'Missing username or password field' });
-    return;
-  }
-  const user = new Users({ userName, userPassword });
-  user.save((err) => {
-    if (err) throw err;
-    res.json(user);
-  })
+  user
+    .save()
+    .then((user) => {
+      res.status(200).json(user);
+    })
+    .catch((err) => {
+      res.status(500).json({ message: "Server Error" , error });
+    });
 });
 
 server.get('./users', (req, res) => {
-  Users.find({}, (err, user) => {
-    if (err) throw err;
-    res.json(user);
-  });
+  Users.find()
+    .then((user) => {
+      res.status(200).json(user);
+    })
+    .catch((error) => {
+      res.status(500).json({ message: "Server Error", error });
+    });
 });
-// const port = 3000;
-// mongoose.Promise = global.Promise;
-// mongoose
-//   .connect('mongodb://localhost/users', { useMongoClient: true })
-//   .then( () => {
-//     server.listen(port, () => {
-//       console.log('Server is now listening on port: ', port);
-//     });
-//   })
-//   .catch(err => {
-//     console.log('Database Connection Failed!');
-//   })
+
+server.get('./users/:id', (req, res) => {
+  const { id } = req.params;
+
+  User.findById(id)
+    .then((user) => {
+      if (user === null) {
+        res.status(404).json({ message: "User not found" });
+      } else {
+        res.status(200).json(user);
+      };
+    })
+    .catch((error) => {
+      if (error.name === "CastError") {
+        res.status(500).json({ message: "The ID provided is invalid", error });
+      } else {
+        res.status(500).json({ message: "Server Error", error });
+      }
+    });
+});
+
+server.delete('./users', (req, res) => {
+  const id = req.params.id;
+  
+  User.findByIdAndUpdate(id)
+    .then((user) => {
+      res.status(200).json({ message: "User removed successfully" });
+    })
+    .catch((error) => {
+      res.status(500).json({ message: "Server Error", error });
+    });
+});
+
+server.put('./users/:id', (req,res) => {
+  const id = req.params.id;
+  const userInformation = req.body;
+
+  User.findByIdAndUpdate(id, userInformation)
+    .then((user) => {
+      res.status(200).json({ message: "User updated successfully" });
+    })
+    .catch((error) => {
+      res.status(500).json({ message: "Server Error", error });
+    });
+});
+
+server.delete('./users', (req, res) => {
+  User.deleteOne(req.body)
+    .then(() => {
+      console.log("It worksssss");
+      res.status(200).send("deleted");
+    })
+    .catch(() => {
+      console.log("We failed miserably!");
+      res.status(500).send("Failed");
+    });
+});
+
+const port = 5000;
+
+mongoose.Promise = global.Promise;
+mongoose.connect('mongodb://localhost:27017/users', { useMongoClient: true })
+  .then(function() {
+    server.listen(port, function() {
+      console.log('All your databses are belong to us!');
+    })
+  })
+  .catch(function(error) {
+    console.log('Database connection failed')
+  });
